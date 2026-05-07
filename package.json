@@ -1,7 +1,7 @@
 {
   "name": "@useorgx/cursor-plugin",
-  "version": "0.1.0",
-  "description": "OrgX plugin for Cursor with MCP, rules, skills, hooks, commands, and specialist agents.",
+  "version": "0.1.1",
+  "description": "OrgX plugin for Cursor with MCP, rules, skills, passive Work Graph hooks, commands, and specialist agents.",
   "type": "module",
   "private": true,
   "scripts": {
