@@ -1,6 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+const CURSOR_MCP_DEEPLINK_PATTERN =
+  /cursor:\/\/anysphere\.cursor-deeplink\/mcp\/install\?name=([^&\s)]+)&config=([A-Za-z0-9_-]+)/;
+
 const requiredFiles = [
   '.cursor-plugin/plugin.json',
   '.mcp.json',
@@ -23,6 +26,7 @@ if (missing.length) {
 const manifest = JSON.parse(readFileSync(resolve('.cursor-plugin/plugin.json'), 'utf8'));
 const mcp = JSON.parse(readFileSync(resolve('.mcp.json'), 'utf8'));
 const hooks = JSON.parse(readFileSync(resolve('hooks/hooks.json'), 'utf8'));
+const readme = readFileSync(resolve('README.md'), 'utf8');
 
 if (!manifest.name || !manifest.version) {
   throw new Error('plugin.json must include at least name and version');
@@ -30,6 +34,19 @@ if (!manifest.name || !manifest.version) {
 
 if (!mcp.mcpServers || !mcp.mcpServers.orgx || !mcp.mcpServers.orgx.url) {
   throw new Error('.mcp.json must define the orgx MCP server');
+}
+
+const deeplinkMatch = readme.match(CURSOR_MCP_DEEPLINK_PATTERN);
+if (!deeplinkMatch) {
+  throw new Error('README.md must include an Add OrgX MCP to Cursor deeplink');
+}
+const [, deeplinkName, deeplinkConfig] = deeplinkMatch;
+if (decodeURIComponent(deeplinkName) !== 'orgx') {
+  throw new Error(`Cursor MCP deeplink must install the orgx server; got ${deeplinkName}`);
+}
+const decodedDeeplinkConfig = JSON.parse(Buffer.from(deeplinkConfig, 'base64url').toString('utf8'));
+if (JSON.stringify(decodedDeeplinkConfig) !== JSON.stringify(mcp.mcpServers.orgx)) {
+  throw new Error('Cursor MCP deeplink config must match .mcp.json mcpServers.orgx');
 }
 
 if (!hooks.hooks || !hooks.hooks.sessionStart) {
