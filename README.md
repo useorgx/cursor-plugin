@@ -21,6 +21,22 @@ This repo contains the plugin artifact needed for Cursor Marketplace submission 
 3. Restart Cursor or run `Developer: Reload Window`
 4. Confirm the plugin loads from `~/.cursor/plugins/local/orgx`
 
+## Install the OrgX MCP server in Cursor
+
+Use this one-click install link if you want the hosted OrgX MCP server in
+Cursor before the full plugin is available in Cursor Marketplace:
+
+[Add OrgX MCP to Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=orgx&config=eyJ0eXBlIjoiaHR0cCIsInVybCI6Imh0dHBzOi8vbWNwLnVzZW9yZ3guY29tL21jcCJ9)
+
+Cursor should prompt to add an `orgx` MCP server with:
+
+```json
+{
+  "type": "http",
+  "url": "https://mcp.useorgx.com/mcp"
+}
+```
+
 ## Hook behavior
 
 Cursor lifecycle hooks call `scripts/hooks/record-work-graph-event.mjs`. The
