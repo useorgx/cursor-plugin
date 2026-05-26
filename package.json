@@ -4,10 +4,14 @@
   "description": "OrgX plugin for Cursor with MCP, rules, skills, passive Work Graph hooks, commands, and specialist agents.",
   "type": "module",
   "private": true,
+  "bin": {
+    "orgx-cursor-reconcile-hooks": "scripts/hooks/orgx-work-graph-reconcile.mjs"
+  },
   "scripts": {
     "verify": "node ./scripts/verify-plugin.mjs",
+    "test": "node --test scripts/hooks/*.test.mjs",
     "install:local": "node ./scripts/install-local.mjs",
-    "check": "npm run verify"
+    "check": "npm run verify && npm test"
   },
   "engines": {
     "node": ">=18.0.0"
