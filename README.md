@@ -16,7 +16,7 @@ This repo contains the plugin artifact needed for Cursor Marketplace submission 
 
 ## Local testing
 
-1. Run `npm run verify`
+1. Run `npm run check`
 2. Run `npm run install:local`
 3. Restart Cursor or run `Developer: Reload Window`
 4. Confirm the plugin loads from `~/.cursor/plugins/local/orgx`
@@ -48,6 +48,18 @@ These hook records are a passive backstop for later Work Graph reconciliation.
 They should answer whether meaningful work happened without durable OrgX
 writeback. They do not store raw prompts, raw transcripts, API keys, tokens, or
 storage state.
+
+Generate a local summary-only Work Graph report without credentials:
+
+```bash
+node scripts/hooks/orgx-work-graph-reconcile.mjs --output /tmp/orgx-work-graph-report.json
+```
+
+Post the report to OrgX only when explicitly requested:
+
+```bash
+ORGX_API_KEY=... node scripts/hooks/orgx-work-graph-reconcile.mjs --post
+```
 
 ## Marketplace
 

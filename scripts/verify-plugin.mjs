@@ -10,6 +10,7 @@ const requiredFiles = [
   'rules/orgx-execution-loop.mdc',
   'hooks/hooks.json',
   'scripts/hooks/record-work-graph-event.mjs',
+  'scripts/hooks/orgx-work-graph-reconcile.mjs',
   'commands/orgx-start-workstream.md',
   'skills/orgx-execution-control-plane/SKILL.md',
   'skills/orgx-runtime-reporting/SKILL.md',
@@ -93,6 +94,17 @@ if (!installScript.includes("fileURLToPath(import.meta.url)")) {
 }
 if (!installScript.includes("resolve(localPluginsDir, 'orgx')")) {
   throw new Error('install-local.mjs must install under the orgx plugin name');
+}
+
+const reconcilerScript = readFileSync(
+  resolve('scripts/hooks/orgx-work-graph-reconcile.mjs'),
+  'utf8'
+);
+if (!reconcilerScript.includes('/api/client/work-graph/reports')) {
+  throw new Error('orgx-work-graph-reconcile.mjs must post to Work Graph reports');
+}
+if (!reconcilerScript.includes('raw_transcripts_sent: false')) {
+  throw new Error('orgx-work-graph-reconcile.mjs must preserve summary-only reporting');
 }
 
 console.log('Plugin manifest, MCP config, and hooks look valid.');
