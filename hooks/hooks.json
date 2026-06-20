@@ -3,6 +3,9 @@
     "sessionStart": [
       {
         "command": "node ./scripts/hooks/session-start.mjs"
+      },
+      {
+        "command": "node ./scripts/hooks/hydrate-context-pack.mjs"
       }
     ],
     "postToolUse": [
