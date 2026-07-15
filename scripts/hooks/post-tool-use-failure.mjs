@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { exitCodeForResult, main, readStdin } from './record-work-graph-event.mjs';
+import { captureCursorHookException } from './sentry.mjs';
 
 readStdin()
   .then((stdinText) =>
@@ -10,7 +11,8 @@ readStdin()
     })
   )
   .then((result) => process.exit(exitCodeForResult(result)))
-  .catch((error) => {
+  .catch(async (error) => {
+    await captureCursorHookException(error, { hook: 'post-tool-use-failure' });
     process.stderr.write(`OrgX Cursor post-tool-use-failure hook failed: ${error.message}\n`);
     process.exit(1);
   });

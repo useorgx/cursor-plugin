@@ -21,6 +21,14 @@ This repo contains the plugin artifact needed for Cursor Marketplace submission 
 3. Restart Cursor or run `Developer: Reload Window`
 4. Confirm the plugin loads from `~/.cursor/plugins/local/orgx`
 
+## npm installation
+
+The same reviewed plugin bundle is published publicly for scripted installs:
+
+```bash
+npm install --global @useorgx/cursor-plugin
+```
+
 ## Install the OrgX MCP server in Cursor
 
 Use this one-click install link if you want the hosted OrgX MCP server in
@@ -48,6 +56,14 @@ These hook records are a passive backstop for later Work Graph reconciliation.
 They should answer whether meaningful work happened without durable OrgX
 writeback. They do not store raw prompts, raw transcripts, API keys, tokens, or
 storage state.
+
+Unexpected hook failures are reported to OrgX Sentry so release regressions are
+visible across Cursor installs. Sentry loads only after an error, keeping the
+normal high-frequency hook path dependency-free and fast. Reports exclude raw
+prompts, tool inputs and outputs, credentials, cookies, request bodies, request
+headers, query strings, and local usernames. Set `ORGX_TELEMETRY_DISABLED=1`,
+`ORGX_SENTRY_DISABLED=1`, or `CURSOR_TELEMETRY_DISABLED=1` to disable reporting.
+Self-hosted deployments can override the destination with `ORGX_SENTRY_DSN`.
 
 Generate a local summary-only Work Graph report without credentials:
 

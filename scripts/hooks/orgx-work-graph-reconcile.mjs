@@ -12,6 +12,8 @@ import { basename, dirname, join } from "node:path";
 import { homedir } from "node:os";
 import { pathToFileURL } from "node:url";
 
+import { captureCursorHookException } from "./sentry.mjs";
+
 import { maybeEmitExecutionGraph } from "./emit-execution-graph.mjs";
 
 const WORK_GRAPH_SCHEMA_VERSION = "2.0.0";
@@ -986,7 +988,8 @@ export async function main({
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((error) => {
+  main().catch(async (error) => {
+    await captureCursorHookException(error, { hook: "orgx-work-graph-reconcile" });
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
     process.exit(1);
   });

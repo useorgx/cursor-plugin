@@ -10,6 +10,8 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import process from "node:process";
 
+import { captureCursorHookException } from "./sentry.mjs";
+
 const PACK_FILENAME = "orgx-context-pack.json";
 const CONFIG_PATHS = [[".cursor", "orgx.local.json"], [".claude", "orgx.local.json"]];
 
@@ -55,6 +57,8 @@ async function main() {
     const out = join(dir, PACK_FILENAME);
     writeFileSync(out, JSON.stringify({ fetchedAt: new Date().toISOString(), data }, null, 2), { mode: 0o600 });
     try { chmodSync(out, 0o600); } catch {}
-  } catch {}
+  } catch (error) {
+    await captureCursorHookException(error, { hook: "hydrate-context-pack" });
+  }
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main().finally(() => process.exit(0));
