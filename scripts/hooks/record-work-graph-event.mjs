@@ -6,6 +6,8 @@ import { dirname, join } from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
+import { captureCursorHookException } from './sentry.mjs';
+
 const SENSITIVE_PAYLOAD_KEYS = new Set([
   'api_key',
   'apiKey',
@@ -167,6 +169,14 @@ export async function main({
 
   const workGraphSpooled = appendWorkGraphHookRecord(record, outbox);
 
+  if (!workGraphSpooled) {
+    await captureCursorHookException(
+      new Error('Cursor Work Graph event could not be written to the local outbox'),
+      { hook: event, operation: 'append-work-graph-event' },
+      { env }
+    );
+  }
+
   return {
     ok: workGraphSpooled,
     work_graph_spooled: workGraphSpooled,
@@ -182,7 +192,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       }
       process.exit(exitCodeForResult(result));
     })
-    .catch((error) => {
+    .catch(async (error) => {
+      await captureCursorHookException(error, { hook: 'record-work-graph-event' });
       process.stderr.write(`OrgX Cursor hook failed: ${error.message}\n`);
       process.exit(1);
     });

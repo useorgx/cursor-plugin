@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 
 import { exitCodeForResult, main, readStdin } from './record-work-graph-event.mjs';
+import { captureCursorHookException } from './sentry.mjs';
 
 readStdin()
   .then((stdinText) =>
     main({ argv: ['--event=subagent_start', '--source_client=cursor'], stdinText })
   )
   .then((result) => process.exit(exitCodeForResult(result)))
-  .catch((error) => {
+  .catch(async (error) => {
+    await captureCursorHookException(error, { hook: 'subagent-start' });
     process.stderr.write(`OrgX Cursor subagent-start hook failed: ${error.message}\n`);
     process.exit(1);
   });

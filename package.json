@@ -1,6 +1,6 @@
 {
   "name": "@useorgx/cursor-plugin",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "OrgX plugin for Cursor with MCP, rules, skills, passive Work Graph hooks, commands, and specialist agents.",
   "type": "module",
   "private": false,
@@ -33,6 +33,9 @@
   ],
   "engines": {
     "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@sentry/node": "10.65.0"
   },
   "keywords": [
     "cursor",
