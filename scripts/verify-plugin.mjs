@@ -25,12 +25,18 @@ if (missing.length) {
 }
 
 const manifest = JSON.parse(readFileSync(resolve('.cursor-plugin/plugin.json'), 'utf8'));
+const packageJson = JSON.parse(readFileSync(resolve('package.json'), 'utf8'));
 const mcp = JSON.parse(readFileSync(resolve('.mcp.json'), 'utf8'));
 const hooks = JSON.parse(readFileSync(resolve('hooks/hooks.json'), 'utf8'));
 const readme = readFileSync(resolve('README.md'), 'utf8');
 
 if (!manifest.name || !manifest.version) {
   throw new Error('plugin.json must include at least name and version');
+}
+if (manifest.version !== packageJson.version) {
+  throw new Error(
+    `package.json version ${packageJson.version} must match plugin.json version ${manifest.version}`
+  );
 }
 
 if (!mcp.mcpServers || !mcp.mcpServers.orgx || !mcp.mcpServers.orgx.url) {

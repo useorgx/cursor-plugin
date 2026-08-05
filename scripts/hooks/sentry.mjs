@@ -71,7 +71,7 @@ function telemetryDisabled(env) {
 export async function captureCursorHookException(
   error,
   tags = {},
-  { env = process.env, version = '0.1.2' } = {}
+  { env = process.env, version = '0.1.3' } = {}
 ) {
   const dsn = env.ORGX_SENTRY_DSN?.trim() || DEFAULT_DSN;
   if (!dsn || telemetryDisabled(env)) return false;
