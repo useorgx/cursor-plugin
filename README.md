@@ -54,7 +54,9 @@ script writes compact, redacted JSONL events to
 
 When the Wizard session-summary hook is installed, the same adapter also sends
 an allowlisted lifecycle shape to that local hook. `stop` becomes a terminal
-`RunEnd` capture, while local `sessionEnd` remains a whole-conversation terminal
+`RunEnd` capture. `afterAgentResponse` is the equivalent headless CLI fallback
+for Cursor versions that do not emit `stop`; if both fire, the second event is
+an idempotent no-op. Local `sessionEnd` remains a whole-conversation terminal
 capture. The Wizard owns the durable queue, acknowledgement, retry, and AWR
 delivery path. The adapter never forwards prompts, tool inputs or outputs,
 transcript paths, user email, or error text.
@@ -63,7 +65,7 @@ Set `ORGX_SESSION_SUMMARY_AUTO_FLUSH=off` for a deliberately offline run. The
 adapter and Wizard retain the capture without starting a delivery worker;
 `orgx-wizard hooks flush` can replay it later with server acknowledgement.
 
-Cursor cloud agents support the prompt, tool, subagent, and `stop` subset but
+Cursor cloud agents support the prompt, tool, subagent, response, and `stop` subset but
 do not run the local `sessionStart` or `sessionEnd` hooks. Cloud proof is
 therefore capability-bounded: `RunEnd` can issue a run receipt when the shared
 Wizard hook and authenticated delivery worker are available, while a missing
