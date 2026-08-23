@@ -74,7 +74,8 @@ for (const [eventName, scriptName] of [
   ['postToolUseFailure', 'post-tool-use-failure.mjs'],
   ['subagentStart', 'subagent-start.mjs'],
   ['subagentStop', 'subagent-stop.mjs'],
-  ['stop', 'stop.mjs']
+  ['stop', 'stop.mjs'],
+  ['afterAgentResponse', 'after-agent-response.mjs']
 ]) {
   if (!Array.isArray(hooks.hooks[eventName]) || hooks.hooks[eventName].length === 0) {
     throw new Error(`hooks/hooks.json must include ${eventName} hooks`);

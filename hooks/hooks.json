@@ -45,6 +45,11 @@
         "loop_limit": 1
       }
     ],
+    "afterAgentResponse": [
+      {
+        "command": "node ./scripts/hooks/after-agent-response.mjs"
+      }
+    ],
     "sessionEnd": [
       {
         "command": "node ./scripts/hooks/session-end.mjs"
