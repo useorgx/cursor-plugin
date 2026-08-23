@@ -102,6 +102,36 @@ test('delegates to the installed Wizard hook and starts fallback delivery', asyn
   }
 });
 
+test('keeps an offline run queued without starting fallback delivery', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'orgx-cursor-bridge-'));
+  const hookPath = join(dir, 'orgx-session-summary.mjs');
+  writeFileSync(hookPath, 'export async function main() {}\n', 'utf8');
+  let spawns = 0;
+  try {
+    const result = await bridgeCursorSessionSummary({
+      event: 'run_end',
+      payload: { conversation_id: 'conversation-offline' },
+      hookPath,
+      env: {
+        PATH: process.env.PATH,
+        ORGX_SESSION_SUMMARY_AUTO_FLUSH: 'off',
+      },
+      moduleLoader: async () => ({
+        main: async () => ({ ok: true, queued: true, delivery_triggered: false }),
+      }),
+      spawnImpl: () => {
+        spawns += 1;
+        throw new Error('offline capture must not spawn');
+      },
+    });
+
+    assert.equal(result.fallback_delivery_triggered, false);
+    assert.equal(spawns, 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('reports a missing shared hook without inventing capture', async () => {
   const result = await bridgeCursorSessionSummary({
     event: 'run_end',

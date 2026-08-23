@@ -78,7 +78,12 @@ function defaultHookPath(env) {
   );
 }
 
+function autoFlushDisabled(value) {
+  return ['off', 'false', '0'].includes(String(value ?? '').trim().toLowerCase());
+}
+
 function triggerFlush({ env, spawnImpl, queueDir }) {
+  if (autoFlushDisabled(env.ORGX_SESSION_SUMMARY_AUTO_FLUSH)) return false;
   try {
     const args = ['hooks', 'flush', '--background', '--limit=25'];
     if (queueDir) args.push(`--queue=${queueDir}`);
