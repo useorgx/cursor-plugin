@@ -10,7 +10,7 @@ This repo contains the plugin artifact needed for Cursor Marketplace submission 
 - `.mcp.json` pointing at the hosted OrgX MCP server
 - Cursor rules for the OrgX execution loop
 - Commands for starting and resuming workstreams, checking proof, and reviewing decisions
-- Quiet hooks for session, tool, and subagent lifecycle events
+- Quiet hooks for prompts, session, tool, subagent, agent-run, and terminal lifecycle events
 - Passive Work Graph hook outbox for audit-first reconciliation
 - Specialist agents for engineering, product, design, operations, marketing, sales, and orchestration
 
@@ -51,6 +51,19 @@ Cursor lifecycle hooks call `scripts/hooks/record-work-graph-event.mjs`. The
 script writes compact, redacted JSONL events to
 `~/.config/useorgx/wizard/hooks/events.jsonl` by default, or to
 `ORGX_WIZARD_HOOK_OUTBOX` when set.
+
+When the Wizard session-summary hook is installed, the same adapter also sends
+an allowlisted lifecycle shape to that local hook. `stop` becomes a terminal
+`RunEnd` capture, while local `sessionEnd` remains a whole-conversation terminal
+capture. The Wizard owns the durable queue, acknowledgement, retry, and AWR
+delivery path. The adapter never forwards prompts, tool inputs or outputs,
+transcript paths, user email, or error text.
+
+Cursor cloud agents support the prompt, tool, subagent, and `stop` subset but
+do not run the local `sessionStart` or `sessionEnd` hooks. Cloud proof is
+therefore capability-bounded: `RunEnd` can issue a run receipt when the shared
+Wizard hook and authenticated delivery worker are available, while a missing
+local Wizard is reported as capture unavailable rather than silently claimed.
 
 These hook records are a passive backstop for later Work Graph reconciliation.
 They should answer whether meaningful work happened without durable OrgX

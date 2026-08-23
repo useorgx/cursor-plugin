@@ -10,6 +10,7 @@ const requiredFiles = [
   'rules/orgx-execution-loop.mdc',
   'hooks/hooks.json',
   'scripts/hooks/record-work-graph-event.mjs',
+  'scripts/hooks/session-summary-bridge.mjs',
   'scripts/hooks/orgx-work-graph-reconcile.mjs',
   'commands/orgx-start-workstream.md',
   'skills/orgx-execution-control-plane/SKILL.md',
@@ -56,16 +57,24 @@ if (JSON.stringify(decodedDeeplinkConfig) !== JSON.stringify(mcp.mcpServers.orgx
   throw new Error('Cursor MCP deeplink config must match .mcp.json mcpServers.orgx');
 }
 
+if (hooks.version !== 1) {
+  throw new Error('hooks/hooks.json must declare Cursor hook schema version 1');
+}
+
 if (!hooks.hooks || !hooks.hooks.sessionStart) {
   throw new Error('hooks/hooks.json must include sessionStart hooks');
 }
 
 for (const [eventName, scriptName] of [
   ['sessionStart', 'session-start.mjs'],
+  ['sessionEnd', 'session-end.mjs'],
+  ['beforeSubmitPrompt', 'before-submit-prompt.mjs'],
+  ['preToolUse', 'pre-tool-use.mjs'],
   ['postToolUse', 'post-tool-use.mjs'],
   ['postToolUseFailure', 'post-tool-use-failure.mjs'],
   ['subagentStart', 'subagent-start.mjs'],
-  ['subagentStop', 'subagent-stop.mjs']
+  ['subagentStop', 'subagent-stop.mjs'],
+  ['stop', 'stop.mjs']
 ]) {
   if (!Array.isArray(hooks.hooks[eventName]) || hooks.hooks[eventName].length === 0) {
     throw new Error(`hooks/hooks.json must include ${eventName} hooks`);
@@ -82,6 +91,7 @@ for (const [eventName, scriptName] of [
 }
 
 const hookScript = readFileSync(resolve('scripts/hooks/record-work-graph-event.mjs'), 'utf8');
+const summaryBridgeScript = readFileSync(resolve('scripts/hooks/session-summary-bridge.mjs'), 'utf8');
 const installScript = readFileSync(resolve('scripts/install-local.mjs'), 'utf8');
 if (!hookScript.includes('orgx_cursor_plugin_runtime_hook')) {
   throw new Error('record-work-graph-event.mjs must emit orgx_cursor_plugin_runtime_hook records');
@@ -94,6 +104,17 @@ if (hookScript.includes('transcript_path:')) {
 }
 if (!hookScript.includes('exitCodeForResult')) {
   throw new Error('record-work-graph-event.mjs must expose hook failure exit handling');
+}
+if (!summaryBridgeScript.includes('orgx-session-summary.mjs')) {
+  throw new Error('session-summary bridge must delegate to the Wizard capture hook');
+}
+if (!summaryBridgeScript.includes("['run_end', 'RunEnd']")) {
+  throw new Error('session-summary bridge must preserve the terminal run boundary');
+}
+for (const forbiddenField of ['tool_input:', 'tool_output:', 'transcript_path:', 'user_email:', 'error_message:']) {
+  if (summaryBridgeScript.includes(forbiddenField)) {
+    throw new Error(`session-summary bridge must not persist ${forbiddenField}`);
+  }
 }
 if (!installScript.includes("fileURLToPath(import.meta.url)")) {
   throw new Error('install-local.mjs must resolve plugin root with fileURLToPath');
