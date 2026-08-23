@@ -59,6 +59,10 @@ capture. The Wizard owns the durable queue, acknowledgement, retry, and AWR
 delivery path. The adapter never forwards prompts, tool inputs or outputs,
 transcript paths, user email, or error text.
 
+Set `ORGX_SESSION_SUMMARY_AUTO_FLUSH=off` for a deliberately offline run. The
+adapter and Wizard retain the capture without starting a delivery worker;
+`orgx-wizard hooks flush` can replay it later with server acknowledgement.
+
 Cursor cloud agents support the prompt, tool, subagent, and `stop` subset but
 do not run the local `sessionStart` or `sessionEnd` hooks. Cloud proof is
 therefore capability-bounded: `RunEnd` can issue a run receipt when the shared
