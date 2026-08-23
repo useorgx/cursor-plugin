@@ -7,6 +7,7 @@ import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
 import { captureCursorHookException } from './sentry.mjs';
+import { bridgeCursorSessionSummary } from './session-summary-bridge.mjs';
 
 const SENSITIVE_PAYLOAD_KEYS = new Set([
   'api_key',
@@ -168,6 +169,12 @@ export async function main({
   });
 
   const workGraphSpooled = appendWorkGraphHookRecord(record, outbox);
+  const continuityCapture = await bridgeCursorSessionSummary({
+    event,
+    payload,
+    env,
+    cwd,
+  });
 
   if (!workGraphSpooled) {
     await captureCursorHookException(
@@ -180,6 +187,7 @@ export async function main({
   return {
     ok: workGraphSpooled,
     work_graph_spooled: workGraphSpooled,
+    continuity_capture: continuityCapture,
   };
 }
 

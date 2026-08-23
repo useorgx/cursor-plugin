@@ -1,4 +1,5 @@
 {
+  "version": 1,
   "hooks": {
     "sessionStart": [
       {
@@ -18,6 +19,16 @@
         "command": "node ./scripts/hooks/post-tool-use-failure.mjs"
       }
     ],
+    "preToolUse": [
+      {
+        "command": "node ./scripts/hooks/pre-tool-use.mjs"
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": "node ./scripts/hooks/before-submit-prompt.mjs"
+      }
+    ],
     "subagentStart": [
       {
         "command": "node ./scripts/hooks/subagent-start.mjs"
@@ -26,6 +37,17 @@
     "subagentStop": [
       {
         "command": "node ./scripts/hooks/subagent-stop.mjs"
+      }
+    ],
+    "stop": [
+      {
+        "command": "node ./scripts/hooks/stop.mjs",
+        "loop_limit": 1
+      }
+    ],
+    "sessionEnd": [
+      {
+        "command": "node ./scripts/hooks/session-end.mjs"
       }
     ]
   }
