@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
@@ -60,20 +60,61 @@ function finiteDuration(...values) {
   return value === undefined ? undefined : Math.max(0, Math.round(value));
 }
 
+function safeActionDescriptor(payload, cwd) {
+  const tool = string(payload.tool_name, payload.toolName, payload.tool?.name);
+  if (!tool) return {};
+  const input = payload.tool_input && typeof payload.tool_input === 'object'
+    ? payload.tool_input
+    : payload.input && typeof payload.input === 'object'
+      ? payload.input
+      : {};
+  const normalized = String(tool ?? '').toLowerCase();
+  const actionEffect = /read|grep|search|find|glob/.test(normalized)
+    ? 'inspect'
+    : /write|edit|patch|notebook/.test(normalized)
+      ? 'change'
+      : /bash|shell|terminal|exec/.test(normalized)
+        ? 'execute'
+        : 'invoke';
+  const filePath = string(input.file_path, input.filePath, input.path, input.notebook_path);
+  if (filePath) {
+    const absolute = resolve(cwd, filePath);
+    const root = resolve(cwd);
+    return {
+      action_effect: actionEffect,
+      action_target: absolute.startsWith(`${root}/`)
+        ? `file:${absolute.slice(root.length + 1)}`
+        : `file:${basename(absolute)}`,
+    };
+  }
+  const command = string(input.command, payload.command);
+  const executable = command?.trim().split(/\s+/)[0];
+  const commandName = executable ? basename(executable) : undefined;
+  return {
+    action_effect: actionEffect,
+    action_target:
+      commandName && /^(?:pnpm|npm|npx|node|git|rg|grep|find|python|python3|pytest|vitest|jest|tsc|curl|gh|make|echo)$/.test(commandName)
+        ? `command:${commandName}`
+        : undefined,
+  };
+}
+
 export function canonicalCursorEvent(event) {
   return EVENT_MAP.get(String(event || '').trim().toLowerCase()) ?? null;
 }
 
 /**
- * Keep only metadata admitted by the Wizard summary hook. Cursor also provides
- * prompts, tool inputs/results, transcript paths, user email, and error text;
- * none of those cross this adapter boundary.
+ * Keep only fields admitted by the Wizard summary hook. A bounded user-request
+ * excerpt may cross when the user enabled work-episode capture; tool inputs,
+ * results, transcript paths, identity, and error text never do.
  */
 export function sanitizeCursorPayload(
   payload = {},
   cwd = process.cwd(),
   env = process.env
 ) {
+  const workspaceCwd = cursorWorkspaceCwd(payload, env, cwd);
+  const action = safeActionDescriptor(payload, workspaceCwd);
   return {
     session_id: string(
       payload.session_id,
@@ -89,11 +130,19 @@ export function sanitizeCursorPayload(
       payload.generation_id,
       payload.generationId
     ),
-    cwd: cursorWorkspaceCwd(payload, env, cwd),
+    cwd: workspaceCwd,
     tool_name: string(payload.tool_name, payload.toolName, payload.tool?.name),
     tool_use_id: string(payload.tool_use_id, payload.toolUseId),
     duration_ms: finiteDuration(payload.duration_ms, payload.duration),
     permission_mode: string(payload.permission_mode, payload.permissionMode),
+    prompt: string(payload.prompt, payload.user_prompt, payload.message, payload.message?.text),
+    root_session_id: string(payload.root_session_id, payload.rootSessionId),
+    parent_session_id: string(payload.parent_session_id, payload.parentSessionId),
+    resumed_from_session_id: string(
+      payload.resumed_from_session_id,
+      payload.resumedFromSessionId
+    ),
+    ...action,
   };
 }
 
@@ -155,6 +204,7 @@ export async function bridgeCursorSessionSummary({
     argv: [
       `--event=${canonicalEvent}`,
       '--source_client=cursor',
+      '--work_episode_capture=bounded',
       ...(queueDir ? [`--queue_dir=${queueDir}`] : []),
     ],
     env,
