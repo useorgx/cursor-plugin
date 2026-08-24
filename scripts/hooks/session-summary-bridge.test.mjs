@@ -18,7 +18,7 @@ test('maps Cursor completion to the shared terminal run boundary', () => {
   assert.equal(canonicalCursorEvent('unknown'), null);
 });
 
-test('allowlists lifecycle metadata and drops content-bearing Cursor fields', () => {
+test('allowlists user intent and lineage while dropping tool and identity content', () => {
   const payload = sanitizeCursorPayload({
     conversation_id: 'conversation-1',
     generation_id: 'generation-2',
@@ -29,6 +29,7 @@ test('allowlists lifecycle metadata and drops content-bearing Cursor fields', ()
     user_email: 'private@example.test',
     transcript_path: '/private/transcript.jsonl',
     prompt: 'private prompt',
+    root_session_id: 'root-1',
     tool_input: { command: 'private command' },
     tool_output: 'private output',
     error_message: 'private error',
@@ -42,11 +43,18 @@ test('allowlists lifecycle metadata and drops content-bearing Cursor fields', ()
     tool_use_id: 'tool-3',
     duration_ms: 42,
     permission_mode: undefined,
+    prompt: 'private prompt',
+    root_session_id: 'root-1',
+    parent_session_id: undefined,
+    resumed_from_session_id: undefined,
+    action_effect: 'execute',
+    action_target: undefined,
   });
   const serialized = JSON.stringify(payload);
-  for (const secret of ['private@example.test', 'transcript', 'private prompt', 'private command', 'private output', 'private error']) {
+  for (const secret of ['private@example.test', 'transcript', 'private command', 'private output', 'private error']) {
     assert.equal(serialized.includes(secret), false);
   }
+  assert.equal(serialized.includes('private prompt'), true);
 });
 
 test('resolves the active workspace instead of the installed plugin cwd', () => {
@@ -120,6 +128,7 @@ test('delegates to the installed Wizard hook and starts fallback delivery', asyn
     assert.deepEqual(calls[0].argv, [
       '--event=RunEnd',
       '--source_client=cursor',
+      '--work_episode_capture=bounded',
     ]);
     assert.deepEqual(JSON.parse(calls[0].stdinText), {
       session_id: 'conversation-1',

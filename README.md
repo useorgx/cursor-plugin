@@ -58,8 +58,11 @@ an allowlisted lifecycle shape to that local hook. `stop` becomes a terminal
 for Cursor versions that do not emit `stop`; if both fire, the second event is
 an idempotent no-op. Local `sessionEnd` remains a whole-conversation terminal
 capture. The Wizard owns the durable queue, acknowledgement, retry, and AWR
-delivery path. The adapter never forwards prompts, tool inputs or outputs,
-transcript paths, user email, or error text.
+delivery path. The plugin sends the current user request to the local Wizard
+hook for bounded Work Episode capture: at most 12 redacted excerpts, 600
+characters each. It does not send tool arguments, tool results, transcript
+paths, user email, or error text. The queued summary declares when these
+request excerpts are included.
 
 Set `ORGX_SESSION_SUMMARY_AUTO_FLUSH=off` for a deliberately offline run. The
 adapter and Wizard retain the capture without starting a delivery worker;
@@ -73,8 +76,8 @@ local Wizard is reported as capture unavailable rather than silently claimed.
 
 These hook records are a passive backstop for later Work Graph reconciliation.
 They should answer whether meaningful work happened without durable OrgX
-writeback. They do not store raw prompts, raw transcripts, API keys, tokens, or
-storage state.
+writeback. They store bounded, redacted request excerpts, not full prompts,
+transcripts, API keys, tokens, or storage state.
 
 Unexpected hook failures are reported to OrgX Sentry so release regressions are
 visible across Cursor installs. Sentry loads only after an error, keeping the
