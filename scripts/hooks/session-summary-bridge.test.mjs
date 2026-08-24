@@ -7,6 +7,7 @@ import test from 'node:test';
 import {
   bridgeCursorSessionSummary,
   canonicalCursorEvent,
+  cursorWorkspaceCwd,
   sanitizeCursorPayload,
 } from './session-summary-bridge.mjs';
 
@@ -46,6 +47,43 @@ test('allowlists lifecycle metadata and drops content-bearing Cursor fields', ()
   for (const secret of ['private@example.test', 'transcript', 'private prompt', 'private command', 'private output', 'private error']) {
     assert.equal(serialized.includes(secret), false);
   }
+});
+
+test('resolves the active workspace instead of the installed plugin cwd', () => {
+  const pluginCwd = '/Users/test/.cursor/plugins/local/cursor-plugin';
+  const workspaceCwd = '/Users/test/Code/orgx';
+
+  assert.equal(
+    cursorWorkspaceCwd(
+      { workspace_roots: [workspaceCwd] },
+      { CURSOR_PROJECT_DIR: workspaceCwd },
+      pluginCwd
+    ),
+    workspaceCwd
+  );
+  assert.equal(
+    sanitizeCursorPayload(
+      { conversation_id: 'conversation-workspace', workspace_roots: [workspaceCwd] },
+      pluginCwd,
+      { CURSOR_PROJECT_DIR: workspaceCwd }
+    ).cwd,
+    workspaceCwd
+  );
+});
+
+test('prefers payload workspace roots and falls back to Cursor project env', () => {
+  assert.equal(
+    cursorWorkspaceCwd(
+      { workspace_roots: ['/workspace/primary', '/workspace/secondary'] },
+      { CURSOR_PROJECT_DIR: '/workspace/env' },
+      '/plugin'
+    ),
+    '/workspace/primary'
+  );
+  assert.equal(
+    cursorWorkspaceCwd({}, { CURSOR_PROJECT_DIR: '/workspace/env' }, '/plugin'),
+    '/workspace/env'
+  );
 });
 
 test('delegates to the installed Wizard hook and starts fallback delivery', async () => {

@@ -7,7 +7,10 @@ import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
 import { captureCursorHookException } from './sentry.mjs';
-import { bridgeCursorSessionSummary } from './session-summary-bridge.mjs';
+import {
+  bridgeCursorSessionSummary,
+  cursorWorkspaceCwd,
+} from './session-summary-bridge.mjs';
 
 const SENSITIVE_PAYLOAD_KEYS = new Set([
   'api_key',
@@ -159,12 +162,13 @@ export async function main({
     env.ORGX_WIZARD_HOOK_OUTBOX,
     join(homedir(), '.config', 'useorgx', 'wizard', 'hooks', 'events.jsonl')
   );
+  const workspaceCwd = cursorWorkspaceCwd(payload, env, cwd);
   const record = buildWorkGraphHookRecord({
     args,
     payload,
     sourceClient,
     event,
-    cwd,
+    cwd: workspaceCwd,
     timestamp,
   });
 
@@ -173,7 +177,7 @@ export async function main({
     event,
     payload,
     env,
-    cwd,
+    cwd: workspaceCwd,
   });
 
   if (!workGraphSpooled) {

@@ -25,6 +25,34 @@ function string(...values) {
   return undefined;
 }
 
+function firstString(values) {
+  if (!Array.isArray(values)) return undefined;
+  return string(...values);
+}
+
+/**
+ * Cursor plugin hooks execute from the installed plugin directory, not the
+ * active workspace. The hook contract carries the actual workspace in both
+ * `workspace_roots` and `CURSOR_PROJECT_DIR`; prefer that explicit context so
+ * cwd-scoped OrgX work context is not looked up against the plugin cache.
+ */
+export function cursorWorkspaceCwd(
+  payload = {},
+  env = process.env,
+  fallbackCwd = process.cwd()
+) {
+  return string(
+    payload.cwd,
+    payload.working_directory,
+    payload.workspace,
+    firstString(payload.workspace_roots),
+    firstString(payload.workspaceRoots),
+    env.CURSOR_PROJECT_DIR,
+    env.CLAUDE_PROJECT_DIR,
+    fallbackCwd
+  );
+}
+
 function finiteDuration(...values) {
   const value = values.find(
     (candidate) => typeof candidate === 'number' && Number.isFinite(candidate)
@@ -41,7 +69,11 @@ export function canonicalCursorEvent(event) {
  * prompts, tool inputs/results, transcript paths, user email, and error text;
  * none of those cross this adapter boundary.
  */
-export function sanitizeCursorPayload(payload = {}, cwd = process.cwd()) {
+export function sanitizeCursorPayload(
+  payload = {},
+  cwd = process.cwd(),
+  env = process.env
+) {
   return {
     session_id: string(
       payload.session_id,
@@ -57,7 +89,7 @@ export function sanitizeCursorPayload(payload = {}, cwd = process.cwd()) {
       payload.generation_id,
       payload.generationId
     ),
-    cwd: string(payload.cwd, payload.working_directory, payload.workspace, cwd),
+    cwd: cursorWorkspaceCwd(payload, env, cwd),
     tool_name: string(payload.tool_name, payload.toolName, payload.tool?.name),
     tool_use_id: string(payload.tool_use_id, payload.toolUseId),
     duration_ms: finiteDuration(payload.duration_ms, payload.duration),
@@ -126,7 +158,7 @@ export async function bridgeCursorSessionSummary({
       ...(queueDir ? [`--queue_dir=${queueDir}`] : []),
     ],
     env,
-    stdinText: JSON.stringify(sanitizeCursorPayload(payload, cwd)),
+    stdinText: JSON.stringify(sanitizeCursorPayload(payload, cwd, env)),
   });
   const fallbackDeliveryTriggered =
     result?.queued === true && result?.delivery_triggered !== true
