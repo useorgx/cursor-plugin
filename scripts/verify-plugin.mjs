@@ -11,6 +11,9 @@ const requiredFiles = [
   'hooks/hooks.json',
   'scripts/hooks/record-work-graph-event.mjs',
   'scripts/hooks/session-summary-bridge.mjs',
+  'scripts/hooks/cursor-context-runtime.mjs',
+  'scripts/hooks/hydrate-context-pack.mjs',
+  'scripts/hooks/session-end.mjs',
   'scripts/hooks/orgx-work-graph-reconcile.mjs',
   'commands/orgx-start-workstream.md',
   'skills/orgx-execution-control-plane/SKILL.md',
@@ -91,8 +94,29 @@ for (const [eventName, scriptName] of [
   }
 }
 
+if (
+  !hooks.hooks.sessionStart.some(
+    (entry) =>
+      entry &&
+      typeof entry.command === 'string' &&
+      entry.command.includes('scripts/hooks/hydrate-context-pack.mjs')
+  )
+) {
+  throw new Error('sessionStart must call scripts/hooks/hydrate-context-pack.mjs');
+}
+
 const hookScript = readFileSync(resolve('scripts/hooks/record-work-graph-event.mjs'), 'utf8');
 const summaryBridgeScript = readFileSync(resolve('scripts/hooks/session-summary-bridge.mjs'), 'utf8');
+const contextHydrationScript = readFileSync(
+  resolve('scripts/hooks/hydrate-context-pack.mjs'),
+  'utf8'
+);
+const contextRuntimeScript = readFileSync(
+  resolve('scripts/hooks/cursor-context-runtime.mjs'),
+  'utf8'
+);
+const sessionEndScript = readFileSync(resolve('scripts/hooks/session-end.mjs'), 'utf8');
+const executionRule = readFileSync(resolve('rules/orgx-execution-loop.mdc'), 'utf8');
 const installScript = readFileSync(resolve('scripts/install-local.mjs'), 'utf8');
 if (!hookScript.includes('orgx_cursor_plugin_runtime_hook')) {
   throw new Error('record-work-graph-event.mjs must emit orgx_cursor_plugin_runtime_hook records');
@@ -112,10 +136,83 @@ if (!summaryBridgeScript.includes('orgx-session-summary.mjs')) {
 if (!summaryBridgeScript.includes("['run_end', 'RunEnd']")) {
   throw new Error('session-summary bridge must preserve the terminal run boundary');
 }
+if (summaryBridgeScript.includes('--work_episode_capture=bounded')) {
+  throw new Error('session-summary bridge must not force bounded Work Episode capture');
+}
 for (const forbiddenField of ['tool_input:', 'tool_output:', 'transcript_path:', 'user_email:', 'error_message:']) {
   if (summaryBridgeScript.includes(forbiddenField)) {
     throw new Error(`session-summary bridge must not persist ${forbiddenField}`);
   }
+}
+for (const anchorVariable of [
+  'ORGX_TASK_ID',
+  'ORGX_WORKSTREAM_ID',
+  'ORGX_INITIATIVE_ID',
+  'ORGX_WORKSPACE_ID',
+]) {
+  if (!contextHydrationScript.includes(anchorVariable)) {
+    throw new Error(`context-pack hydration must support ${anchorVariable}`);
+  }
+}
+if (!contextHydrationScript.includes('data.sessionWorkContext')) {
+  throw new Error('context-pack hydration must consume data.sessionWorkContext');
+}
+if (!contextHydrationScript.includes('/api/v1/context-pack')) {
+  throw new Error('context-pack hydration must use the canonical v1 route');
+}
+if (!contextHydrationScript.includes('redirect: "error"')) {
+  throw new Error('context-pack hydration must reject HTTP redirects');
+}
+if (
+  contextHydrationScript.includes('localConfig?.apiKey') ||
+  contextHydrationScript.includes('localConfig?.api_key') ||
+  contextHydrationScript.includes('localConfig?.baseUrl') ||
+  contextHydrationScript.includes('localConfig?.base_url')
+) {
+  throw new Error('project-local context config must remain credential-free');
+}
+for (const commandPart of ['"sessions"', '"context"', '"set"', '"--file"']) {
+  if (!contextHydrationScript.includes(commandPart)) {
+    throw new Error('context-pack hydration must use the Wizard sessions context set interface');
+  }
+}
+if (!contextHydrationScript.includes('"clear"')) {
+  throw new Error('context-pack hydration must clear stale exact-cwd activation');
+}
+for (const commandPart of [
+  '"--source-client"',
+  '"--session-id"',
+  '"--context-sha256"',
+]) {
+  if (!contextHydrationScript.includes(commandPart)) {
+    throw new Error(`context-pack hydration must include Wizard v2 argument ${commandPart}`);
+  }
+}
+for (const contractToken of [
+  'orgx-session-work-context-ack/v1',
+  'orgx-session-work-context-activation/v2',
+  'contextSha256',
+  'additional_context',
+  'parsed.value?.ok !== true',
+]) {
+  if (!contextHydrationScript.includes(contractToken)) {
+    throw new Error(`context-pack hydration must enforce ${contractToken}`);
+  }
+}
+if (!contextRuntimeScript.includes('ORGX_CURSOR_CONTEXT_HOME')) {
+  throw new Error('Cursor context must support private runtime storage outside the project');
+}
+if (!contextRuntimeScript.includes('randomUUID()') || !contextRuntimeScript.includes('renameSync')) {
+  throw new Error('Cursor context runtime writes must remain atomic');
+}
+if (
+  !sessionEndScript.includes('clearSessionWorkContext') ||
+  !sessionEndScript.includes('removeSessionRuntimeState')
+) {
+  throw new Error('sessionEnd must clear the exact Wizard lease and private runtime state');
+}
+if (!executionRule.includes('.cursor/orgx-context-pack.json')) {
+  throw new Error('the always-on execution rule must consume the retained context pack');
 }
 if (!installScript.includes("fileURLToPath(import.meta.url)")) {
   throw new Error('install-local.mjs must resolve plugin root with fileURLToPath');

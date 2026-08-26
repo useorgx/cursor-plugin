@@ -16,6 +16,8 @@ const EVENT_MAP = new Map([
   ['session_end', 'SessionEnd'],
 ]);
 
+const MAX_CAPTURED_PROMPT_CHARACTERS = 600;
+
 function string(...values) {
   for (const value of values) {
     if (typeof value !== 'string') continue;
@@ -58,6 +60,19 @@ function finiteDuration(...values) {
     (candidate) => typeof candidate === 'number' && Number.isFinite(candidate)
   );
   return value === undefined ? undefined : Math.max(0, Math.round(value));
+}
+
+function workEpisodeCaptureEnabled(value) {
+  return ['bounded', 'on', 'true', '1'].includes(
+    String(value ?? '').trim().toLowerCase()
+  );
+}
+
+function boundedPrompt(value) {
+  const prompt = string(value);
+  return prompt
+    ? Array.from(prompt).slice(0, MAX_CAPTURED_PROMPT_CHARACTERS).join('')
+    : undefined;
 }
 
 function safeActionDescriptor(payload, cwd) {
@@ -135,7 +150,16 @@ export function sanitizeCursorPayload(
     tool_use_id: string(payload.tool_use_id, payload.toolUseId),
     duration_ms: finiteDuration(payload.duration_ms, payload.duration),
     permission_mode: string(payload.permission_mode, payload.permissionMode),
-    prompt: string(payload.prompt, payload.user_prompt, payload.message, payload.message?.text),
+    prompt: workEpisodeCaptureEnabled(env.ORGX_SESSION_WORK_EPISODE_CAPTURE)
+      ? boundedPrompt(
+          string(
+            payload.prompt,
+            payload.user_prompt,
+            payload.message,
+            payload.message?.text
+          )
+        )
+      : undefined,
     root_session_id: string(payload.root_session_id, payload.rootSessionId),
     parent_session_id: string(payload.parent_session_id, payload.parentSessionId),
     resumed_from_session_id: string(
@@ -204,9 +228,11 @@ export async function bridgeCursorSessionSummary({
     argv: [
       `--event=${canonicalEvent}`,
       '--source_client=cursor',
-      '--work_episode_capture=bounded',
       ...(queueDir ? [`--queue_dir=${queueDir}`] : []),
     ],
+    // The Wizard owns capture consent. Passing the environment through lets
+    // ORGX_SESSION_WORK_EPISODE_CAPTURE select bounded capture when the user
+    // opted in; omitting a CLI override preserves its metadata-only default.
     env,
     stdinText: JSON.stringify(sanitizeCursorPayload(payload, cwd, env)),
   });
