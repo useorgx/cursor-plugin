@@ -18,22 +18,26 @@ test('maps Cursor completion to the shared terminal run boundary', () => {
   assert.equal(canonicalCursorEvent('unknown'), null);
 });
 
-test('allowlists user intent and lineage while dropping tool and identity content', () => {
-  const payload = sanitizeCursorPayload({
-    conversation_id: 'conversation-1',
-    generation_id: 'generation-2',
-    cwd: '/work/repo',
-    tool_name: 'Shell',
-    tool_use_id: 'tool-3',
-    duration: 42.4,
-    user_email: 'private@example.test',
-    transcript_path: '/private/transcript.jsonl',
-    prompt: 'private prompt',
-    root_session_id: 'root-1',
-    tool_input: { command: 'private command' },
-    tool_output: 'private output',
-    error_message: 'private error',
-  });
+test('allowlists bounded user intent and lineage while dropping tool and identity content', () => {
+  const payload = sanitizeCursorPayload(
+    {
+      conversation_id: 'conversation-1',
+      generation_id: 'generation-2',
+      cwd: '/work/repo',
+      tool_name: 'Shell',
+      tool_use_id: 'tool-3',
+      duration: 42.4,
+      user_email: 'private@example.test',
+      transcript_path: '/private/transcript.jsonl',
+      prompt: 'private prompt',
+      root_session_id: 'root-1',
+      tool_input: { command: 'private command' },
+      tool_output: 'private output',
+      error_message: 'private error',
+    },
+    '/work/repo',
+    { ORGX_SESSION_WORK_EPISODE_CAPTURE: 'bounded' }
+  );
 
   assert.deepEqual(payload, {
     session_id: 'conversation-1',
@@ -55,6 +59,22 @@ test('allowlists user intent and lineage while dropping tool and identity conten
     assert.equal(serialized.includes(secret), false);
   }
   assert.equal(serialized.includes('private prompt'), true);
+});
+
+test('defaults to metadata-only capture and bounds explicitly enabled prompts', () => {
+  const prompt = 'a'.repeat(700);
+  assert.equal(
+    sanitizeCursorPayload({ prompt }, '/work/repo', {}).prompt,
+    undefined
+  );
+  assert.equal(
+    sanitizeCursorPayload(
+      { prompt },
+      '/work/repo',
+      { ORGX_SESSION_WORK_EPISODE_CAPTURE: 'bounded' }
+    ).prompt.length,
+    600
+  );
 });
 
 test('resolves the active workspace instead of the installed plugin cwd', () => {
@@ -128,7 +148,6 @@ test('delegates to the installed Wizard hook and starts fallback delivery', asyn
     assert.deepEqual(calls[0].argv, [
       '--event=RunEnd',
       '--source_client=cursor',
-      '--work_episode_capture=bounded',
     ]);
     assert.deepEqual(JSON.parse(calls[0].stdinText), {
       session_id: 'conversation-1',
@@ -144,6 +163,46 @@ test('delegates to the installed Wizard hook and starts fallback delivery', asyn
     ]);
     assert.equal(spawns[0].options.detached, true);
     assert.equal(unrefed, true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('leaves bounded Work Episode capture to explicit Wizard environment consent', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'orgx-cursor-bridge-'));
+  const hookPath = join(dir, 'orgx-session-summary.mjs');
+  writeFileSync(hookPath, 'export async function main() {}\n', 'utf8');
+  const calls = [];
+  try {
+    await bridgeCursorSessionSummary({
+      event: 'user_prompt',
+      payload: {
+        conversation_id: 'conversation-consent',
+        prompt: 'bounded only after explicit consent',
+      },
+      hookPath,
+      env: {
+        PATH: process.env.PATH,
+        ORGX_SESSION_WORK_EPISODE_CAPTURE: 'bounded',
+      },
+      moduleLoader: async () => ({
+        main: async (input) => {
+          calls.push(input);
+          return { ok: true };
+        },
+      }),
+    });
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].env.ORGX_SESSION_WORK_EPISODE_CAPTURE, 'bounded');
+    assert.deepEqual(calls[0].argv, [
+      '--event=UserPromptSubmit',
+      '--source_client=cursor',
+    ]);
+    assert.equal(
+      calls[0].argv.some((arg) => arg.startsWith('--work_episode_capture=')),
+      false
+    );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
