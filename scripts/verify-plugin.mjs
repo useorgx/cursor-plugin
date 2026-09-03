@@ -37,6 +37,12 @@ const readme = readFileSync(resolve('README.md'), 'utf8');
 if (!manifest.name || !manifest.version) {
   throw new Error('plugin.json must include at least name and version');
 }
+if (manifest.name !== 'orgx') {
+  throw new Error('plugin.json name must be the Cursor Marketplace identifier orgx');
+}
+if (!/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(manifest.name)) {
+  throw new Error('plugin.json name must be lowercase and contain only letters, numbers, hyphens, or periods');
+}
 if (manifest.version !== packageJson.version) {
   throw new Error(
     `package.json version ${packageJson.version} must match plugin.json version ${manifest.version}`
@@ -211,8 +217,12 @@ if (
 ) {
   throw new Error('sessionEnd must clear the exact Wizard lease and private runtime state');
 }
-if (!executionRule.includes('.cursor/orgx-context-pack.json')) {
-  throw new Error('the always-on execution rule must consume the retained context pack');
+if (
+  !executionRule.includes('sessionStart') ||
+  !executionRule.includes('additional_context') ||
+  !executionRule.includes('informational rather than authority')
+) {
+  throw new Error('the always-on execution rule must consume the injected context without promoting unverified authority');
 }
 if (!installScript.includes("fileURLToPath(import.meta.url)")) {
   throw new Error('install-local.mjs must resolve plugin root with fileURLToPath');
