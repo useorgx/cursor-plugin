@@ -1,7 +1,7 @@
 {
-  "name": "@useorgx/cursor-plugin",
+  "name": "orgx",
   "description": "OrgX execution control plane for Cursor with bootstrap, resumable workstreams, proof, decisions, Work Graph hooks, and specialist agents.",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "author": {
     "name": "OrgX Team",
     "email": "team@useorgx.com"
