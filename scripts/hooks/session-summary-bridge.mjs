@@ -62,12 +62,6 @@ function finiteDuration(...values) {
   return value === undefined ? undefined : Math.max(0, Math.round(value));
 }
 
-function workEpisodeCaptureEnabled(value) {
-  return ['bounded', 'on', 'true', '1'].includes(
-    String(value ?? '').trim().toLowerCase()
-  );
-}
-
 function boundedPrompt(value) {
   const prompt = string(value);
   return prompt
@@ -150,7 +144,7 @@ export function sanitizeCursorPayload(
     tool_use_id: string(payload.tool_use_id, payload.toolUseId),
     duration_ms: finiteDuration(payload.duration_ms, payload.duration),
     permission_mode: string(payload.permission_mode, payload.permissionMode),
-    prompt: workEpisodeCaptureEnabled(env.ORGX_SESSION_WORK_EPISODE_CAPTURE)
+    prompt: resolveCursorWorkCapture(env) === 'bounded'
       ? boundedPrompt(
           string(
             payload.prompt,
@@ -181,6 +175,24 @@ function defaultHookPath(env) {
       'orgx-session-summary.mjs'
     )
   );
+}
+
+/**
+ * Capture mode is pinned explicitly on every call (plan v3 §5.10), matching the
+ * Wizard's installed Claude/Codex hooks: an ambient
+ * ORGX_SESSION_WORK_EPISODE_CAPTURE — set for another client, or inherited
+ * from a parent process — must not widen what Cursor captures. Bounded
+ * capture (redacted request excerpts) is a Cursor-specific opt-in.
+ */
+export function resolveCursorWorkCapture(env = process.env) {
+  const value = String(env.ORGX_CURSOR_WORK_CAPTURE ?? '').trim().toLowerCase();
+  return value === 'bounded' ? 'bounded' : 'metadata-only';
+}
+
+function withoutAmbientCaptureMode(env) {
+  const next = { ...env };
+  delete next.ORGX_SESSION_WORK_EPISODE_CAPTURE;
+  return next;
 }
 
 function autoFlushDisabled(value) {
@@ -224,16 +236,15 @@ export async function bridgeCursorSessionSummary({
   }
 
   const queueDir = string(env.ORGX_SESSION_SUMMARY_QUEUE_DIR);
+  const workCapture = resolveCursorWorkCapture(env);
   const result = await hook.main({
     argv: [
       `--event=${canonicalEvent}`,
       '--source_client=cursor',
+      `--work_episode_capture=${workCapture}`,
       ...(queueDir ? [`--queue_dir=${queueDir}`] : []),
     ],
-    // The Wizard owns capture consent. Passing the environment through lets
-    // ORGX_SESSION_WORK_EPISODE_CAPTURE select bounded capture when the user
-    // opted in; omitting a CLI override preserves its metadata-only default.
-    env,
+    env: withoutAmbientCaptureMode(env),
     stdinText: JSON.stringify(sanitizeCursorPayload(payload, cwd, env)),
   });
   const fallbackDeliveryTriggered =

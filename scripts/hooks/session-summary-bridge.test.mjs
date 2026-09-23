@@ -36,7 +36,7 @@ test('allowlists bounded user intent and lineage while dropping tool and identit
       error_message: 'private error',
     },
     '/work/repo',
-    { ORGX_SESSION_WORK_EPISODE_CAPTURE: 'bounded' }
+    { ORGX_CURSOR_WORK_CAPTURE: 'bounded' }
   );
 
   assert.deepEqual(payload, {
@@ -71,9 +71,18 @@ test('defaults to metadata-only capture and bounds explicitly enabled prompts', 
     sanitizeCursorPayload(
       { prompt },
       '/work/repo',
-      { ORGX_SESSION_WORK_EPISODE_CAPTURE: 'bounded' }
+      { ORGX_CURSOR_WORK_CAPTURE: 'bounded' }
     ).prompt.length,
     600
+  );
+  assert.equal(
+    sanitizeCursorPayload(
+      { prompt },
+      '/work/repo',
+      { ORGX_SESSION_WORK_EPISODE_CAPTURE: 'bounded' }
+    ).prompt,
+    undefined,
+    'an ambient generic capture variable must not widen Cursor capture'
   );
 });
 
@@ -148,6 +157,7 @@ test('delegates to the installed Wizard hook and starts fallback delivery', asyn
     assert.deepEqual(calls[0].argv, [
       '--event=RunEnd',
       '--source_client=cursor',
+      '--work_episode_capture=metadata-only',
     ]);
     assert.deepEqual(JSON.parse(calls[0].stdinText), {
       session_id: 'conversation-1',
@@ -168,45 +178,48 @@ test('delegates to the installed Wizard hook and starts fallback delivery', asyn
   }
 });
 
-test('leaves bounded Work Episode capture to explicit Wizard environment consent', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'orgx-cursor-bridge-'));
-  const hookPath = join(dir, 'orgx-session-summary.mjs');
-  writeFileSync(hookPath, 'export async function main() {}\n', 'utf8');
-  const calls = [];
-  try {
-    await bridgeCursorSessionSummary({
-      event: 'user_prompt',
-      payload: {
-        conversation_id: 'conversation-consent',
-        prompt: 'bounded only after explicit consent',
-      },
-      hookPath,
-      env: {
-        PATH: process.env.PATH,
-        ORGX_SESSION_WORK_EPISODE_CAPTURE: 'bounded',
-      },
-      moduleLoader: async () => ({
-        main: async (input) => {
-          calls.push(input);
-          return { ok: true };
+for (const [label, env, expected] of [
+  ['an ambient generic variable', { ORGX_SESSION_WORK_EPISODE_CAPTURE: 'bounded' }, 'metadata-only'],
+  ['the Cursor-specific opt-in', { ORGX_CURSOR_WORK_CAPTURE: 'bounded' }, 'bounded'],
+]) {
+  test(`pins the capture mode explicitly under ${label} (plan v3 §5.10)`, async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'orgx-cursor-bridge-'));
+    const hookPath = join(dir, 'orgx-session-summary.mjs');
+    writeFileSync(hookPath, 'export async function main() {}\n', 'utf8');
+    const calls = [];
+    try {
+      await bridgeCursorSessionSummary({
+        event: 'user_prompt',
+        payload: {
+          conversation_id: 'conversation-consent',
+          prompt: 'bounded only after explicit consent',
         },
-      }),
-    });
+        hookPath,
+        env: { PATH: process.env.PATH, ...env },
+        moduleLoader: async () => ({
+          main: async (input) => {
+            calls.push(input);
+            return { ok: true };
+          },
+        }),
+      });
 
-    assert.equal(calls.length, 1);
-    assert.equal(calls[0].env.ORGX_SESSION_WORK_EPISODE_CAPTURE, 'bounded');
-    assert.deepEqual(calls[0].argv, [
-      '--event=UserPromptSubmit',
-      '--source_client=cursor',
-    ]);
-    assert.equal(
-      calls[0].argv.some((arg) => arg.startsWith('--work_episode_capture=')),
-      false
-    );
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
+      assert.equal(calls.length, 1);
+      assert.deepEqual(calls[0].argv, [
+        '--event=UserPromptSubmit',
+        '--source_client=cursor',
+        `--work_episode_capture=${expected}`,
+      ]);
+      assert.equal(calls[0].env.ORGX_SESSION_WORK_EPISODE_CAPTURE, undefined);
+      assert.equal(
+        JSON.parse(calls[0].stdinText).prompt !== undefined,
+        expected === 'bounded'
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+}
 
 test('keeps an offline run queued without starting fallback delivery', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'orgx-cursor-bridge-'));
