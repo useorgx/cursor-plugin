@@ -18,4 +18,5 @@ Keep Cursor work anchored to OrgX workstreams, decisions, proof, and execution s
 
 - Do not invent work that is not grounded in the active OrgX context.
 - Do not call work complete without verification.
+- Do not call a decision approved or a spawned run done until OrgX says so: decisions are settled only by a person (`review_url`), and `orgx_command_status` reports a run's real state.
 - Keep repo-local `.cursor/orgx/` overlays additive to the plugin defaults.
