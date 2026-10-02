@@ -42,19 +42,35 @@ session is still fresh.
 
 4. Handle blockers structurally:
 - If judgment is required, request a decision with explicit options.
+- A decision waits on a person. `approve_decision`, `reject_decision`, and
+  `orgx_decide` approve/reject only return where the person decides (the
+  decisions widget for ordinary decisions, otherwise the `review_url` in
+  OrgX). Report the blocker as waiting on them; never report a decision as
+  approved or rejected yourself.
 - If context is missing, report the exact missing dependency.
 
-5. Close execution cleanly:
+5. Report started work as started:
+- Spawning, delegating, or launching work starts a run; it does not finish
+  one. Keep the returned run, decision, or command ID and read its real state
+  with `orgx_command_status` (`kind: "run" | "decision" | "command"`):
+  `queued`, `held`, `running`, `succeeded`, `failed`, `cancelled`, or
+  `not_found`, with `waiting_on` naming a person or agent. Check again after
+  `next_poll_after_ms`; `null` means the state is final.
+- If a write's outcome is unclear, retry it with the same idempotency key;
+  OrgX replays the stored result instead of duplicating the write (a 409 means
+  the first attempt is still in flight).
+
+6. Close execution cleanly:
 - When the task is complete and verified, emit completion activity and update
   entity state if the task ID is available.
 
-6. If no OrgX IDs are available:
+7. If no OrgX IDs are available:
 - Continue the work, but make the final response easy for the hook reconciler to
   classify: name decisions, artifacts, blockers, next actions, and verification.
 - Do not claim OrgX was updated unless an MCP tool or API call actually
   succeeded.
 
-7. Preserve Work Graph continuity:
+8. Preserve Work Graph continuity:
 - When a Work Graph report is generated, include its `work_graph_fingerprint`
   and `signup_hydration.hydration_key` in summaries or artifacts that are safe
   to store.
