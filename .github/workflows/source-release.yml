@@ -1,0 +1,52 @@
+name: Source release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths: [".github/workflows/source-release.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: source-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Resolve existing source tag
+        id: source
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ "$REF_TYPE" == "tag" ]]; then
+            release_tag="$REF_NAME"
+          else
+            release_tag="v$(python3 -c 'import json; print(json.load(open("package.json"))["version"])')"
+          fi
+          if [[ ! "$release_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Invalid version tag"
+            exit 1
+          fi
+          release_sha="$(git rev-parse --verify "refs/tags/${release_tag}^{commit}")"
+          echo "tag=$release_tag" >> "$GITHUB_OUTPUT"
+          echo "sha=$release_sha" >> "$GITHUB_OUTPUT"
+      - name: Create source release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          tag_name: ${{ steps.source.outputs.tag }}
+          target_commitish: ${{ steps.source.outputs.sha }}
+          generate_release_notes: true
+          prerelease: ${{ contains(steps.source.outputs.tag, '-') }}
