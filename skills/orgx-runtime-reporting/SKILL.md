@@ -11,7 +11,7 @@ updates and use only its authenticated callable tools.
 1. Resolve the current workspace, initiative, task, and run from supplied
    context or `orgx_get_workspace_context`; never infer their state from memory.
 2. For reporting, use `orgx_get_operator_brief` with `period: "30d"`, `"day"`,
-   or `"week"`. Lead with `reportingNarrative.briefMarkdown`, then cite gaps
+   or `"week"`. Lead with `chronicle.reportingNarrative.briefMarkdown`, then cite gaps
    and next actions. Use `orgx_get_next_actions` for priorities, without a mode.
 3. Register concrete proof with `orgx_attach_artifact`, supplying the work
    target and durable `location.artifact_url` or `location.external_url`.
