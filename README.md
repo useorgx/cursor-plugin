@@ -34,16 +34,25 @@ npm install --global @useorgx/cursor-plugin
 Use this one-click install link if you want the hosted OrgX MCP server in
 Cursor before the full plugin is available in Cursor Marketplace:
 
-[Add OrgX MCP to Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=orgx&config=eyJ0eXBlIjoiaHR0cCIsInVybCI6Imh0dHBzOi8vbWNwLnVzZW9yZ3guY29tL21jcCJ9)
+[Add OrgX MCP to Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=orgx&config=eyJ0eXBlIjoiaHR0cCIsInVybCI6Imh0dHBzOi8vbWNwLnVzZW9yZ3guY29tL21jcD9wcm9maWxlPXYyIn0=)
 
 Cursor should prompt to add an `orgx` MCP server with:
 
 ```json
 {
   "type": "http",
-  "url": "https://mcp.useorgx.com/mcp"
+  "url": "https://mcp.useorgx.com/mcp?profile=v2"
 }
 ```
+
+This package selects `v2` and uses named workflow and portable receipt tools.
+After updating the package or server, reconnect MCP and refresh its callable
+inventory. Rules, commands, and skills use the same current tool names; a
+missing operation is a connection or version mismatch, not an alias to guess.
+
+Passive Work Graph hooks retain their HTTP delivery path. Portable receipts
+are imported with `orgx_submit_work_receipt` as complete documents. Signed human
+review and verification remain separate from producer status claims.
 
 ## Hook behavior
 

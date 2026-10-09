@@ -52,6 +52,9 @@ if (manifest.version !== packageJson.version) {
 if (!mcp.mcpServers || !mcp.mcpServers.orgx || !mcp.mcpServers.orgx.url) {
   throw new Error('.mcp.json must define the orgx MCP server');
 }
+if (mcp.mcpServers.orgx.url !== 'https://mcp.useorgx.com/mcp?profile=v2') {
+  throw new Error('Cursor must use the explicit workflow operation profile');
+}
 
 const deeplinkMatch = readme.match(CURSOR_MCP_DEEPLINK_PATTERN);
 if (!deeplinkMatch) {
