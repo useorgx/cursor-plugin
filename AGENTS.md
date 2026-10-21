@@ -27,3 +27,7 @@ npm run check
 ```
 
 Do not run local install flows in Codex cloud unless the task specifically needs to inspect install behavior. `npm run install:local` writes to the user plugin directory and is a local-machine verification step.
+
+## Work and merge authority
+
+Continue routine implementation, PR updates, and requested merges under the user's existing authorization. Run checks appropriate to the diff and honor required CI and branch protection. Missing OrgX context, reporting, receipts, or optional tooling does not block local work or create a new approval requirement; report the limitation and continue independent work.
